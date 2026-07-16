@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Slope Optimiser</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+:root{
+  --bg:#F5F6F8;--surface:#FFFFFF;--surface2:#F0F2F6;
+  --border:#D9D9D7;--border-mid:#C0C4CC;
+  --cmp-red:#E31B23;--dark-blue:#182C69;--blue:#527FC0;--teal:#4CC2C5;
+  --dark-green:#377731;--light-green:#C3CE94;--forest:#798C6C;
+  --coal:#3A3A3A;--cool-grey:#D9D9D7;
+  --accent:var(--dark-blue);--accent2:var(--blue);--accent3:var(--teal);
+  --warn:#f5a623;--danger:var(--cmp-red);
+  --text:var(--coal);--muted:#6B7280;
+  --mono:'IBM Plex Mono',monospace;--sans:'Nunito Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;}
+header{background:var(--dark-blue);border-bottom:3px solid var(--cmp-red);padding:0 20px;display:flex;align-items:stretch;gap:0;height:52px;}
+.header-logo-block{display:flex;align-items:center;gap:10px;padding-right:18px;border-right:1px solid rgba(255,255,255,0.15);margin-right:16px;}
+.cmp-wordmark{font-family:var(--sans);font-size:20px;font-weight:700;color:#fff;letter-spacing:-.01em;}
+.cmp-wordmark span{color:var(--cmp-red);}
+.header-text{display:flex;flex-direction:column;justify-content:center;gap:1px;}
+header h1{font-size:13px;font-weight:700;color:rgba(255,255,255,0.92);letter-spacing:.01em;}
+header p{font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--mono);}
+.badge{margin-left:auto;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:var(--teal);font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:2px;letter-spacing:.06em;align-self:center;}
+.layout{display:grid;grid-template-columns:290px 1fr;height:calc(100vh - 52px);}
+.left-panel{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;}
+.ps{border-bottom:1px solid var(--border);padding:13px 14px;}
+.ps h3{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--dark-blue);margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid var(--teal);display:inline-block;}
+.field{margin-bottom:8px;}
+.field label{display:block;font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:600;}
+.field input,.field select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--coal);font-family:var(--mono);font-size:11px;padding:5px 8px;border-radius:2px;outline:none;transition:border-color .15s;}
+.field input:focus,.field select:focus{border-color:var(--dark-blue);box-shadow:0 0 0 2px rgba(24,44,105,0.1);}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.unit{font-size:9px;color:var(--muted);margin-top:2px;font-family:var(--mono);}
+textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--coal);font-family:var(--mono);font-size:10px;padding:7px;border-radius:2px;resize:vertical;outline:none;line-height:1.6;min-height:150px;}
+textarea:focus{border-color:var(--dark-blue);}
+.btn-p{width:100%;background:var(--dark-blue);color:#fff;font-family:var(--sans);font-weight:700;font-size:12px;padding:10px;border:none;border-radius:2px;cursor:pointer;transition:background .15s,transform .1s;letter-spacing:.04em;text-transform:uppercase;}
+.btn-p:hover{background:var(--blue);}
+.btn-p:active{transform:scale(.98);}
+.btn-p:disabled{background:var(--cool-grey);color:var(--muted);cursor:not-allowed;}
+.btn-s{background:var(--surface2);color:var(--coal);border:1px solid var(--border);font-family:var(--sans);font-size:10px;font-weight:600;padding:5px 10px;border-radius:2px;cursor:pointer;transition:all .12s;}
+.btn-s:hover{border-color:var(--dark-blue);color:var(--dark-blue);}
+.right-panel{display:flex;flex-direction:column;overflow:hidden;}
+.tabs{display:flex;background:var(--surface);border-bottom:2px solid var(--border);padding:0 14px;gap:0;flex-shrink:0;}
+.tab{padding:12px 16px;font-size:10px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap;text-transform:uppercase;letter-spacing:.06em;}
+.tab:hover{color:var(--dark-blue);}
+.tab.active{color:var(--dark-blue);border-bottom-color:var(--cmp-red);}
+.tab-content{flex:1;overflow:hidden;}
+.tab-pane{display:none;height:100%;overflow-y:auto;padding:14px;}
+.tab-pane.active{display:block;}
+#profile-pane{padding:0;overflow:hidden;}
+#profile-pane.active{display:flex;flex-direction:column;}
+.chart-top{flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);}
+.chart-legend-row{display:flex;gap:10px;align-items:center;padding:6px 14px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--surface2);}
+.li{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--muted);}
+.ld{width:16px;height:3px;border-radius:1px;}
+.divider-v{width:1px;height:12px;background:var(--border);flex-shrink:0;}
+.chart-toggles{display:flex;gap:5px;align-items:center;padding:6px 14px;flex-wrap:wrap;border-bottom:1px solid var(--border);}
+.toggle-label{font-size:9px;color:var(--dark-blue);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-right:4px;flex-shrink:0;}
+.scen-btn{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:2px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:10px;font-family:var(--sans);font-weight:600;transition:all .12s;user-select:none;color:var(--muted);}
+.scen-btn.active{background:var(--surface);color:var(--coal);border-color:var(--dark-blue);box-shadow:0 1px 4px rgba(24,44,105,0.12);}
+.scen-btn .sw{width:10px;height:10px;border-radius:1px;flex-shrink:0;}
+.chart-desc-row{padding:5px 14px 6px;font-size:10px;color:var(--muted);line-height:1.4;min-height:26px;background:var(--surface);}
+.chart-desc-row strong{color:var(--dark-blue);margin-right:4px;font-weight:700;}
+#chart-container{flex:1;position:relative;overflow:hidden;}
+canvas{display:block;}
+.rh{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.kc{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:11px 13px;border-left:3px solid var(--blue);}
+.kc.best{border-left-color:var(--dark-blue);}
+.kl{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;font-weight:700;}
+.kv{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--coal);}
+.kv.g{color:var(--dark-blue);}.kv.a{color:var(--warn);}
+.ks{font-size:9px;color:var(--muted);margin-top:2px;}
+.strat-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;overflow:hidden;cursor:pointer;transition:border-color .12s,box-shadow .12s;margin-bottom:8px;}
+.strat-card:hover{border-color:var(--blue);box-shadow:0 2px 8px rgba(24,44,105,0.08);}
+.strat-card.active-card{border-color:var(--dark-blue);box-shadow:0 2px 12px rgba(24,44,105,0.15);}
+.strat-head{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.strat-swatch{width:4px;height:32px;border-radius:1px;flex-shrink:0;}
+.strat-name{font-size:12px;font-weight:700;flex:1;color:var(--coal);}
+.strat-cost{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--coal);}
+.strat-tag{font-size:9px;padding:2px 7px;border-radius:2px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;}
+.tag-best{background:var(--dark-blue);color:#fff;}
+.tag-alt{background:var(--surface2);border:1px solid var(--border);color:var(--muted);}
+.strat-stats{padding:8px 12px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;border-bottom:1px solid var(--border);}
+.ss-l{font-size:9px;color:var(--muted);margin-bottom:1px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+.ss-v{font-family:var(--mono);font-size:11px;color:var(--coal);}
+.strat-desc{padding:7px 12px 9px;font-size:10px;color:var(--muted);line-height:1.5;}
+.seg-table{width:100%;border-collapse:collapse;font-size:10px;}
+.seg-table th{background:var(--dark-blue);color:#fff;font-size:9px;letter-spacing:.07em;text-transform:uppercase;text-align:left;padding:6px 8px;border-bottom:2px solid var(--cmp-red);position:sticky;top:0;z-index:1;font-weight:700;}
+.seg-table td{padding:5px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);vertical-align:middle;color:var(--coal);}
+.seg-table tr:nth-child(even) td{background:var(--surface2);}
+.seg-table tr:hover td{background:rgba(24,44,105,0.05);}
+.seg-table tfoot td{background:var(--surface2);font-weight:600;border-top:2px solid var(--dark-blue);}
+.gp{display:inline-block;padding:1px 5px;border-radius:2px;font-size:9px;font-weight:700;font-family:var(--mono);}
+.g-none{background:#e6f4e6;color:#377731;}
+.g-ts{background:#e8f0fa;color:#182C69;}
+.g-bh{background:#fef6e0;color:#92600a;}
+.g-enc{background:#fde8e8;color:#b91c1c;}
+.g-sp{background:#f3e8ff;color:#7c3aed;}
+.g-flat{background:#ede9fe;color:#5b21b6;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:9px;color:var(--muted);text-align:center;}
+.empty-icon{font-size:34px;opacity:.25;}
+.empty-state h3{font-size:13px;color:var(--coal);font-weight:700;}
+.empty-state p{font-size:11px;max-width:260px;line-height:1.5;}
+.progress-wrap{background:var(--surface2);border-radius:2px;height:3px;margin-top:6px;overflow:hidden;display:none;}
+.progress-bar{height:100%;background:var(--dark-blue);width:0%;transition:width .15s;}
+.info-box{background:rgba(76,194,197,0.07);border:1px solid rgba(76,194,197,0.3);border-left:3px solid var(--teal);border-radius:2px;padding:8px 10px;font-size:10px;line-height:1.5;color:var(--muted);margin-bottom:9px;}
+.info-box strong{color:var(--coal);}
+.warn-box{background:rgba(227,27,35,0.05);border:1px solid rgba(227,27,35,0.2);border-left:3px solid var(--cmp-red);border-radius:2px;padding:8px 10px;font-size:10px;line-height:1.5;color:#b91c1c;margin-bottom:9px;}
+.export-row{display:flex;gap:7px;margin-bottom:12px;align-items:center;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);}
+.auto-btn{
+  flex:1;background:var(--teal);color:#fff;
+  border:none;border-radius:2px;
+  font-family:var(--sans);font-size:10px;font-weight:700;
+  padding:7px 8px;cursor:pointer;
+  transition:background .12s;letter-spacing:.02em;
+}
+.auto-btn:hover{background:var(--dark-blue);}
+.auto-btn-clear{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
+.auto-btn-clear:hover{background:var(--surface2);border-color:var(--cmp-red);color:var(--cmp-red);}
+/* Design rules flag pills */
+.rule-ok{background:#e6f4e6;color:#377731;border:1px solid #c3e6c3;}
+.rule-warn{background:#fef6e0;color:#92600a;border:1px solid #fde8b0;}
+.rule-fail{background:#fde8e8;color:#b91c1c;border:1px solid #fbc5c5;}
+.rule-pill{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:2px;margin:2px;}
+
+/* ── TOOLTIP ── */
+.tip-wrap{display:inline-flex;align-items:center;margin-left:4px;vertical-align:middle;}
+.tip-btn{width:14px;height:14px;border-radius:50%;background:var(--blue);color:#fff;font-size:9px;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;font-family:var(--sans);}
+.tip-btn:hover{background:var(--dark-blue);}
+/* Tooltip is appended to <body> by JS — never clipped by panel overflow */
+#tip-global{
+  display:none;position:fixed;
+  background:var(--dark-blue);color:#fff;
+  font-size:10px;line-height:1.5;font-family:var(--sans);font-weight:400;
+  padding:9px 12px;border-radius:3px;max-width:240px;z-index:99999;
+  box-shadow:0 4px 20px rgba(24,44,105,0.3);pointer-events:none;
+}
+#tip-global::before{
+  content:'';position:absolute;right:100%;top:14px;
+  border:5px solid transparent;border-right-color:var(--dark-blue);
+}
+/* label with tooltip inline */
+.label-tip{display:flex;align-items:center;gap:0;margin-bottom:3px;}
+.label-tip span{font-size:10px;color:var(--muted);font-weight:600;}
+
+</style>
+</head>
+<body>
+<div id="tip-global"></div>
+<header>
+  <div class="header-logo-block">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 406" height="28" style="display:block;fill:#ffffff;">
+      <path d="M284.18,298.97h-130.72C68.84,298.97,0,231.93,0,149.53S68.84.1,153.46.1h130.72c12.26,0,22.2,9.68,22.2,21.61s-9.94,21.62-22.2,21.62h-130.72c-60.14,0-109.06,47.64-109.06,106.2s48.92,106.21,109.06,106.21h130.72c12.26,0,22.2,9.68,22.2,21.61s-9.94,21.62-22.2,21.62M903.46,185.52c52.5,0,95.2-41.59,95.2-92.71S955.96.1,903.46.1h-185.6c-12.26,0-22.21,9.68-22.21,21.61s9.94,21.62,22.21,21.62h185.6c28.02,0,50.8,22.19,50.8,49.47s-22.79,49.47-50.8,49.47h-185.6c-12.26,0-22.21,9.68-22.21,21.61s9.94,21.62,22.21,21.62h185.6M370.85,298.97c12.26,0,22.2-9.68,22.2-21.62V21.71c0-11.93-9.94-21.61-22.2-21.61s-22.2,9.68-22.2,21.61v255.64c0,11.94,9.94,21.62,22.2,21.62M501.52,298.97c12.26,0,22.2-9.68,22.2-21.62V21.71c0-11.93-9.94-21.61-22.2-21.61s-22.2,9.68-22.2,21.61v255.64c0,11.94,9.94,21.62,22.2,21.62M632.2,298.97c12.26,0,22.2-9.68,22.2-21.62V21.71c0-11.93-9.94-21.61-22.2-21.61s-22.2,9.68-22.2,21.61v255.64c0,11.94,9.94,21.62,22.2,21.62"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>Pipeline Slope Optimiser</h1>
+    <p>Table 7.5 AS/NZS 2566.2 — Strategy comparison</p>
+  </div>
+  <div class="badge">v4 STRATEGIES</div>
+</header>
+
+<div class="layout">
+<div class="left-panel">
+
+  <div class="ps">
+    <h3>Pipe Parameters</h3>
+    <div class="fr">
+      <div class="field"><label>Min Cover (m)</label><input type="number" id="minCover" value="0.6" step="0.05"></div>
+      <div class="field"><label>Pipe OD (m)</label><input type="number" id="pipeOD" value="0.324" step="0.001"></div>
+    </div>
+    <div class="fr">
+      <div class="field"><label>Bedding (m)</label><input type="number" id="bedding" value="0.15" step="0.05"></div>
+      <div class="field"><label>Trench Width (m)</label><input type="number" id="trenchW" value="0.80" step="0.05"></div>
+    </div>
+    <div class="field"><label>Std Pipe Length L (m)</label><input type="number" id="pipeLen" value="6" step="0.5"></div>
+  </div>
+
+  <div class="ps">
+    <h3>Cost Rates</h3>
+    <div class="fr">
+      <div class="field"><label>Excavation ($/m³)</label><input type="number" id="rateExc" value="85"></div>
+      <div class="field"><label>Backfill ($/m³)</label><input type="number" id="rateBackfill" value="55"></div>
+    </div>
+    <div class="field"><label>Pipe Supply &amp; Lay ($/m LM)</label><input type="number" id="ratePipe" value="210"></div>
+    <div class="fr">
+      <div class="field"><label>Trenchstop ($/ea)</label><input type="number" id="rateTS" value="850"></div>
+      <div class="field"><label>Bulkhead ($/ea)</label><input type="number" id="rateBH" value="3200"></div>
+    </div>
+    <div class="fr">
+      <div class="field"><label>Encasement ($/m LM)</label><input type="number" id="rateEnc" value="420"></div>
+      <div class="field"><label>Special Design ($)</label><input type="number" id="rateSpecial" value="15000"></div>
+    </div>
+  </div>
+
+  <div class="ps">
+    <h3>Start &amp; End Constraints</h3>
+    <div class="info-box" style="margin-bottom:8px;">Set fixed invert levels at the pipe start/end (e.g. connection to existing structure). Leave blank to let the optimiser choose. Use <strong>Auto-fill</strong> to populate from your profile data.</div>
+
+    <!-- Auto-fill button row -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button class="auto-btn" onclick="autoFillConstraints()" title="Reads your profile data and fills Start Chainage, End Chainage, and calculates the optimal End Invert RL at minimum grade">
+        ⟳ Auto-fill from profile
+      </button>
+      <button class="auto-btn auto-btn-clear" onclick="clearConstraints()">✕ Clear all</button>
+    </div>
+
+    <div class="fr">
+      <div class="field">
+        <div class="label-tip"><span>Start Ch. (m)</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Chainage at the upstream start of the pipe. Auto-fill sets this to the first point in your survey data.">i</button></div>
+        </div>
+        <input type="number" id="startCh" placeholder="auto" step="0.01">
+      </div>
+      <div class="field">
+        <div class="label-tip"><span>End Ch. (m)</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Chainage at the downstream end. Auto-fill sets this to the last point in your survey data.">i</button></div>
+        </div>
+        <input type="number" id="endCh" placeholder="auto" step="0.01">
+      </div>
+    </div>
+    <div class="fr">
+      <div class="field">
+        <div class="label-tip"><span>Start Invert RL (m AHD)</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Fixed pipe invert at the upstream end — typically set by a connection to an existing manhole, pit, or structure. Leave blank for the optimiser to choose the shallowest valid level. Auto-fill calculates this as surface RL minus cover, OD and bedding at the first chainage point.">i</button></div>
+        </div>
+        <input type="number" id="startInvert" placeholder="leave blank = auto" step="0.001">
+      </div>
+      <div class="field">
+        <div class="label-tip"><span>End Invert RL (m AHD)</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Fixed pipe invert at the downstream end — typically set by a discharge structure or existing connection. Auto-fill calculates the shallowest level achievable at minimum grade from the start. Leave blank for the optimiser to choose freely.">i</button></div>
+        </div>
+        <input type="number" id="endInvert" placeholder="leave blank = auto" step="0.001">
+      </div>
+    </div>
+    <div id="autoFillStatus" style="font-size:10px;color:var(--muted);margin-top:5px;min-height:14px;"></div>
+  </div>
+
+  <div class="ps">
+    <h3>Settings</h3>
+    <div class="fr">
+      <div class="field">
+        <div class="label-tip"><span>Min Grade (%)</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Minimum pipe grade per AS/NZS 2566.2. The traditional rule is 1:500 = 0.2% minimum to ensure self-cleaning velocity and allow air to travel to high points for release. Set to 0 only if you have a specific reason (e.g. flat valley sump crossing with air valve).">i</button></div>
+        </div>
+        <input type="number" id="minGrade" value="0.2" step="0.05">
+      </div>
+      <div class="field">
+        <div class="label-tip"><span>Survey smoothing</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Applies a median filter to the raw survey data to remove spike points (e.g. survey artifacts, cliff faces, or short vertical drops that don't reflect the true ground profile). Each pass replaces each point with the median of itself and its two neighbours. Light (1 pass) is recommended for most survey data. Off if your data is already clean.">i</button></div>
+        </div>
+        <select id="smoothing">
+          <option value="0">Off</option>
+          <option value="1" selected>Light (1 pass)</option>
+          <option value="2">Medium (2 passes)</option>
+          <option value="3">Heavy (3 passes)</option>
+        </select>
+      </div>
+    </div>
+    <div class="fr">
+      <div class="field">
+        <div class="label-tip"><span>Min segment (m)</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Minimum length of a constant-grade run between two grade break points. Prevents unrealistically short segments. 10–20 m is typical for water mains.">i</button></div>
+        </div>
+        <input type="number" id="minSegLen" value="10" step="5">
+      </div>
+      <div class="field">
+        <div class="label-tip"><span>Max segment (m)</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Maximum length of a constant-grade run. Longer segments mean fewer grade breaks (simpler design) but less flexibility to optimise. 100–200 m is typical.">i</button></div>
+        </div>
+        <input type="number" id="maxSegLen" value="200" step="10">
+      </div>
+    </div>
+    <div class="fr">
+      <div class="field">
+        <div class="label-tip"><span>Max cover (m)</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Maximum depth to pipe invert before a shoring / trench-support design is required. AS 4600 and WorkSafe require engineered shoring for trenches deeper than ~1.5m in unstable ground. Typical soft limit for open-cut water mains is 3.0–4.5m. Segments exceeding this are flagged.">i</button></div>
+        </div>
+        <input type="number" id="maxCover" value="3.0" step="0.25">
+      </div>
+      <div class="field">
+        <div class="label-tip"><span>Max grade change (°)</span>
+          <div class="tip-wrap"><button class="tip-btn" data-tip="Maximum angular change in grade between two consecutive pipe segments (joint deflection limit). For PE and DI pipes with rubber-ring joints, the allowable joint deflection is typically 1.5°–5° per joint. Over a segment, this limits how sharply the grade can change at a break point. 15° per segment is a conservative practical limit.">i</button></div>
+        </div>
+        <input type="number" id="maxGradeChange" value="15" step="1" min="1" max="30">
+      </div>
+    </div>
+  </div>
+
+  <div class="ps">
+    <h3>Surface Profile — Chainage &amp; RL</h3>
+    <div class="info-box">Paste <strong>chainage, RL</strong> — one row per point.</div>
+    <textarea id="profileInput" placeholder="0, 52.400&#10;10, 51.850&#10;..."></textarea>
+    <div style="margin-top:6px;display:flex;gap:5px;">
+      <button class="btn-s" onclick="loadDemo()">⟳ Random terrain</button>
+      <button class="btn-s" onclick="clearProfile()">Clear</button>
+    </div>
+  </div>
+
+  <div class="ps">
+    <div id="runStatus" style="font-size:10px;color:var(--muted);margin-bottom:6px;text-align:center;min-height:14px;"></div>
+    <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
+    <button class="btn-p" id="runBtn" onclick="runAll()" style="margin-top:8px;">▶  Run All Strategies</button>
+  </div>
+
+</div><!-- /left-panel -->
+
+<div class="right-panel">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('profile-pane',this)">Long Section</div>
+    <div class="tab" onclick="switchTab('scenarios-pane',this)">Strategies</div>
+    <div class="tab" onclick="switchTab('segments-pane',this)">Segment Detail</div>
+  </div>
+  <div class="tab-content">
+
+    <!-- LONG SECTION -->
+    <div class="tab-pane active" id="profile-pane">
+      <div class="chart-top">
+        <div class="chart-legend-row">
+          <div class="li"><div class="ld" style="background:#527FC0;"></div>Surface</div>
+          <div class="li"><div class="ld" style="background:#f5a623;border:none;border-top:2px dashed #f5a623;height:0;"></div>Cover envelope</div>
+          <div class="divider-v"></div>
+          <div class="li"><div class="ld" style="background:#377731;"></div>&lt;5%</div>
+          <div class="li"><div class="ld" style="background:#182C69;"></div>TS 5–14%</div>
+          <div class="li"><div class="ld" style="background:#f5a623;"></div>BH 15–29%</div>
+          <div class="li"><div class="ld" style="background:#E31B23;"></div>Enc 30–50%</div>
+          <div class="li"><div class="ld" style="background:#7c3aed;"></div>&gt;50%</div>
+          <div style="margin-left:auto;font-size:10px;color:var(--muted);" id="chartInfo"></div>
+        </div>
+        <div class="chart-toggles" id="chartToggles">
+          <span class="toggle-label">Strategy:</span>
+        </div>
+        <div class="chart-desc-row" id="chartDescRow">Select a strategy above to view its long section.</div>
+      </div>
+      <div id="chart-container">
+        <div class="empty-state" id="chartEmpty">
+          <div class="empty-icon">⛰</div>
+          <h3>No data yet</h3>
+          <p>Paste your survey data on the left and click Run All Strategies.</p>
+        </div>
+        <canvas id="profileCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- STRATEGIES -->
+    <div class="tab-pane" id="scenarios-pane">
+      <div class="empty-state" id="scenEmpty">
+        <div class="empty-icon">📊</div>
+        <h3>No results yet</h3>
+        <p>Run the optimiser to compare strategies.</p>
+      </div>
+      <div id="scenarioContent" style="display:none;">
+        <div class="rh" id="kpiRow"></div>
+        <div id="warnBox"></div>
+        <div id="strategyGrid"></div>
+      </div>
+    </div>
+
+    <!-- SEGMENT DETAIL -->
+    <div class="tab-pane" id="segments-pane">
+      <div class="empty-state" id="segEmpty">
+        <div class="empty-icon">📋</div>
+        <h3>Select a strategy</h3>
+        <p>Click any strategy card to see full segment breakdown.</p>
+      </div>
+      <div id="segmentContent" style="display:none;">
+        <div class="export-row">
+          <div id="segTitle" style="font-size:12px;font-weight:600;flex:1;"></div>
+          <button class="btn-s" onclick="exportCSV()">Export CSV</button>
+        </div>
+        <div class="rh" id="segKpiRow"></div>
+        <div id="warnBoxSeg"></div>
+        <table class="seg-table">
+          <thead><tr>
+            <th>#</th><th>Ch Start</th><th>Ch End</th><th>Len</th>
+            <th>Grade</th><th>Inv Start</th><th>Inv End</th><th>Avg Depth</th>
+            <th>Restraint</th><th>Spacing</th><th>Units</th>
+            <th>Restraint $</th><th>Exc+Pipe $</th><th>Total $</th><th>Checks</th>
+          </tr></thead>
+          <tbody id="segmentBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div><!-- /layout -->
+
+<script>
+// ═══════════════════════════════════════════════
+// TABLE 7.5
+// ═══════════════════════════════════════════════
+function getRestraint(g){
+  if(g<0.01) return {type:'Flat/Sump',cls:'g-flat'};
+  if(g<5)    return {type:'None',     cls:'g-none'};
+  if(g<15)   return {type:'Trenchstop',cls:'g-ts'};
+  if(g<30)   return {type:'Bulkhead', cls:'g-bh'};
+  if(g<=50)  return {type:'Encasement',cls:'g-enc'};
+  return            {type:'Special',  cls:'g-sp'};
+}
+function getSpacing(g,L){
+  if(g<0.01||g<5) return Infinity;
+  if(g<15) return 100/g;
+  if(g<30) return Math.min(L*100/g,450);
+  if(g<=50)return 100/g;
+  return 0;
+}
+function restraintCost(g,len,L,R){
+  const r=getRestraint(g);
+  if(r.type==='None'||r.type==='Flat/Sump') return 0;
+  if(r.type==='Special') return R.special;
+  const sp=getSpacing(g,L), n=Math.ceil(len/sp);
+  if(r.type==='Trenchstop') return n*R.ts;
+  if(r.type==='Bulkhead')   return n*R.bh;
+  if(r.type==='Encasement') return len*R.enc+n*R.bh;
+  return 0;
+}
+function restraintUnits(g,len,L){
+  const r=getRestraint(g);
+  if(r.type==='None'||r.type==='Flat/Sump') return 0;
+  if(r.type==='Special') return 1;
+  return Math.ceil(len/getSpacing(g,L));
+}
+function excCost(len,avgD,tw,rE,rB,rP){
+  return len*tw*avgD*(rE+rB)+len*rP;
+}
+
+// ═══════════════════════════════════════════════
+// PROFILE UTILS
+// ═══════════════════════════════════════════════
+function parseProfile(txt){
+  return txt.trim().split('\n').map(l=>{
+    const p=l.trim().split(/[\t,]+/);
+    return p.length>=2?{ch:+p[0],rl:+p[1]}:null;
+  }).filter(p=>p&&!isNaN(p.ch)&&!isNaN(p.rl)).sort((a,b)=>a.ch-b.ch);
+}
+function smoothProfile(pts,passes){
+  let out=pts.map(p=>({...p}));
+  for(let p=0;p<passes;p++){
+    const nx=out.map(x=>({...x}));
+    for(let i=1;i<out.length-1;i++){
+      const v=[out[i-1].rl,out[i].rl,out[i+1].rl].sort((a,b)=>a-b);
+      nx[i].rl=v[1];
+    }
+    out=nx;
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════════
+// SEGMENT BUILDER
+// Given a set of grade-break chainages + invert RLs,
+// compute all segments with costs, checking cover.
+// Returns null if any cover violation.
+// ═══════════════════════════════════════════════
+function buildSegments(breakPts, smoothed, p, R){
+  const offset=p.minCover+p.pipeOD+p.bedding;
+  const segs=[];
+  let totalRest=0,totalExc=0,totalTS=0,totalBH=0,totalEncLen=0,specials=0;
+
+  for(let s=0;s<breakPts.length-1;s++){
+    const a=breakPts[s], b=breakPts[s+1];
+    const len=b.ch-a.ch;
+    if(len<=0) continue;
+    const drop=a.inv-b.inv;
+    const grade=(drop/len)*100;
+
+    if(grade<0) return null; // uphill — invalid
+
+    // Check cover at all smoothed pts in range
+    let dSum=0,dN=0,coverViolated=false;
+    for(const pt of smoothed){
+      if(pt.ch<a.ch-1e-6||pt.ch>b.ch+1e-6) continue;
+      const t=(pt.ch-a.ch)/len;
+      const invAtPt=a.inv-drop*t;
+      const depth=pt.rl-invAtPt;
+      if(depth<offset-0.001){coverViolated=true;break;}
+      dSum+=depth; dN++;
+    }
+    if(coverViolated) return null;
+
+    const avgD=dN>0?dSum/dN:(a.inv+b.inv)/2; // fallback shouldn't happen
+    const ri=getRestraint(grade);
+    const sp=getSpacing(grade,p.pipeLen);
+    const nu=restraintUnits(grade,len,p.pipeLen);
+    const rCost=restraintCost(grade,len,p.pipeLen,R);
+    const eCost=excCost(len,avgD,p.trenchW,p.rateExc,p.rateBackfill,p.ratePipe);
+
+    if(ri.type==='Trenchstop') totalTS+=nu;
+    if(ri.type==='Bulkhead')   totalBH+=nu;
+    if(ri.type==='Encasement'){totalEncLen+=len;totalBH+=nu;}
+    if(ri.type==='Special')    specials++;
+    totalRest+=rCost; totalExc+=eCost;
+
+    // Max cover flag
+    const maxDepthInSeg=dN>0?Math.max(...Array.from({length:dN},(_,i)=>i)):-1;
+    // Re-compute max depth by checking all pts
+    let maxD=0;
+    for(const pt of smoothed){
+      if(pt.ch<a.ch-1e-6||pt.ch>b.ch+1e-6) continue;
+      const t=(pt.ch-a.ch)/len;
+      const invAtPt2=a.inv-drop*t;
+      const d2=pt.rl-invAtPt2;
+      if(d2>maxD) maxD=d2;
+    }
+    const deepFlag = maxD > (p.maxCover||3.0);
+
+    segs.push({no:s+1,chStart:a.ch,chEnd:b.ch,len,grade,
+      invStart:a.inv,invEnd:b.inv,avgDepth:avgD,maxDepth:maxD,deepFlag,
+      restraint:ri.type,cls:ri.cls,
+      spacing:sp===Infinity?'—':sp.toFixed(1),
+      nUnits:nu,restCost:rCost,excCost:eCost,total:rCost+eCost});
+  }
+
+  // Grade change check between consecutive segments
+  let gradeChangeFlags=0;
+  for(let i=1;i<segs.length;i++){
+    const g1=segs[i-1].grade, g2=segs[i].grade;
+    const angleChange=Math.abs(Math.atan(g2/100)-Math.atan(g1/100))*180/Math.PI;
+    segs[i].gradeChangeDeg=angleChange;
+    segs[i].gradeChangeFlag=angleChange>(p.maxGradeChange||15);
+    if(segs[i].gradeChangeFlag) gradeChangeFlags++;
+  }
+  if(segs.length>0){segs[0].gradeChangeDeg=0;segs[0].gradeChangeFlag=false;}
+
+  const deepFlags=segs.filter(s=>s.deepFlag).length;
+
+  return {segs,totalRest,totalExc,totalTS,totalBH,totalEncLen,specials,
+    deepFlags,gradeChangeFlags,
+    cost:totalRest+totalExc,
+    avgGrade:segs.reduce((s,g)=>s+g.grade*g.len,0)/segs.reduce((s,g)=>s+g.len,0)};
+}
+
+// ═══════════════════════════════════════════════
+// STRATEGY ENGINE
+// Each strategy defines HOW to set the invert
+// at each break point — fundamentally different
+// design philosophies.
+// ═══════════════════════════════════════════════
+
+// Get max invert (shallowest) at a chainage
+function maxInv(ch, smoothed, offset){
+  const s=interpRL(smoothed,ch);
+  return s-offset;
+}
+function interpRL(profile,ch){
+  if(ch<=profile[0].ch) return profile[0].rl;
+  if(ch>=profile[profile.length-1].ch) return profile[profile.length-1].rl;
+  for(let i=0;i<profile.length-1;i++){
+    if(ch>=profile[i].ch&&ch<=profile[i+1].ch){
+      const t=(ch-profile[i].ch)/(profile[i+1].ch-profile[i].ch);
+      return profile[i].rl+t*(profile[i+1].rl-profile[i].rl);
+    }
+  }
+  return profile[profile.length-1].rl;
+}
+
+// Build evenly-spaced break points along the alignment
+function makeBreakPts(smoothed, minSegLen, maxSegLen){
+  // Use profile points spaced at least minSegLen apart
+  const bps=[smoothed[0].ch];
+  let last=smoothed[0].ch;
+  for(let i=1;i<smoothed.length-1;i++){
+    if(smoothed[i].ch-last>=minSegLen) {bps.push(smoothed[i].ch); last=smoothed[i].ch;}
+  }
+  bps.push(smoothed[smoothed.length-1].ch);
+  return bps;
+}
+
+// ── STRATEGY: run a constant grade from start to end, adjusting invert
+//    to hit a specific TARGET GRADE across each stretch.
+//    gradeTarget: function(surfGrade) -> desired pipe grade %
+function runConstantGradeStrategy(name, desc, colour, gradeTargetFn,
+    smoothed, p, R, offset){
+  const bpChs = makeBreakPts(smoothed, p.minSegLen, p.maxSegLen);
+  // Use a single straight line across the whole alignment
+  // where grade is determined by the steepest terrain section
+  const ch0=bpChs[0], chN=bpChs[bpChs.length-1];
+  const totalLen=chN-ch0;
+
+  // Find min maxInvert at any point (constrains the shallowest possible start)
+  // Then project a straight grade forward
+  // Start: shallowest possible at ch0
+  let startInv=maxInv(ch0,smoothed,offset);
+
+  // Walk forward and find what grade we need to NOT violate cover
+  // by checking every smoothed point
+  let minRequiredGrade=0;
+  for(const pt of smoothed){
+    if(pt.ch<=ch0) continue;
+    const len=pt.ch-ch0;
+    const surfAtPt=pt.rl;
+    const maxInvAtPt=surfAtPt-offset;
+    // For the pipe to be at maxInvAtPt at this chainage, we need:
+    // grade = (startInv - maxInvAtPt) / len * 100
+    const neededGrade=(startInv-maxInvAtPt)/len*100;
+    if(neededGrade>minRequiredGrade) minRequiredGrade=neededGrade;
+  }
+
+  // Apply the target grade function
+  const targetGrade=gradeTargetFn(minRequiredGrade);
+  if(targetGrade<0) return null;
+
+  // Build break points: start inv fixed, then project grade
+  const bps=bpChs.map(ch=>{
+    const len=ch-ch0;
+    const inv=startInv-(targetGrade/100)*len;
+    return {ch, inv};
+  });
+
+  const result=buildSegments(bps,smoothed,p,R);
+  if(!result) return null;
+  return {name, desc, colour, ...result, path:bps, strategy:'constant'};
+}
+
+// ── STRATEGY: Follow terrain as shallow as possible (shallowest invert at every break pt)
+//    then compute grades between them
+function runShallowStrategy(name, desc, colour, smoothed, p, R, offset){
+  const bpChs = makeBreakPts(smoothed, p.minSegLen, p.maxSegLen);
+
+  // Set each break point to the maximum (shallowest) allowable invert
+  // BUT we must also ensure the pipe keeps going downhill.
+  // Walk forward: invert at each point = min(maxInv, prev_invert - minDrop)
+  const bps=[];
+  let prevInv=null, prevCh=null;
+
+  for(let i=0;i<bpChs.length;i++){
+    const ch=bpChs[i];
+    const mInv=maxInv(ch,smoothed,offset);
+    if(prevInv===null){
+      bps.push({ch,inv:mInv}); prevInv=mInv; prevCh=ch; continue;
+    }
+    const len=ch-prevCh;
+    const minGradeInv=prevInv-(p.minGrade/100)*len; // must go at least minGrade downhill
+    // Take the highest (shallowest) inv that still respects minGrade
+    const inv=Math.min(mInv, prevInv); // can't go uphill
+    // But must be at least minGrade below prev if minGrade>0
+    const inv2=(p.minGrade>0)?Math.min(inv, minGradeInv):inv;
+    bps.push({ch,inv:inv2}); prevInv=inv2; prevCh=ch;
+  }
+
+  const result=buildSegments(bps,smoothed,p,R);
+  if(!result) return null;
+  return {name, desc, colour, ...result, path:bps, strategy:'shallow'};
+}
+
+// ── STRATEGY: deep DP — minimise cost by searching invert levels
+function runDPStrategy(name, desc, colour, depthStep, maxExtraDepth,
+    smoothed, p, R, offset, gradeMax){
+  const bpChs = makeBreakPts(smoothed, p.minSegLen, p.maxSegLen);
+  const N=bpChs.length;
+
+  function invLevels(i){
+    // If this is the first or last station and a fixed invert is specified, pin it
+    const isFirst=(i===0), isLast=(i===N-1);
+    if(isFirst&&p&&p.startInvert!==null){
+      return [p.startInvert];
+    }
+    if(isLast&&p&&p.endInvert!==null){
+      return [p.endInvert];
+    }
+    const mx=maxInv(bpChs[i],smoothed,offset);
+    const mn=mx-maxExtraDepth;
+    const lvs=[];
+    for(let v=mx;v>=mn-1e-9;v-=depthStep) lvs.push(Math.round(v*1e4)/1e4);
+    return lvs;
+  }
+  const invArr=bpChs.map((_,i)=>invLevels(i));
+  const dp=invArr.map(lvs=>lvs.map(()=>({cost:Infinity,prevI:-1,prevJ:-1})));
+  dp[0].forEach(c=>c.cost=0);
+
+  for(let i=0;i<N-1;i++){
+    const ch_i=bpChs[i];
+    for(let j=0;j<invArr[i].length;j++){
+      if(dp[i][j].cost===Infinity) continue;
+      const inv_i=invArr[i][j];
+      for(let ni=i+1;ni<N;ni++){
+        const ch_ni=bpChs[ni];
+        const segLen=ch_ni-ch_i;
+        if(segLen>p.maxSegLen) break;
+        for(let k=0;k<invArr[ni].length;k++){
+          const inv_k=invArr[ni][k];
+          const drop=inv_i-inv_k;
+          const grade=(drop/segLen)*100;
+          if(grade<0||grade>gradeMax) continue;
+          if(grade>0&&grade<p.minGrade) continue;
+          // Cover check
+          let bad=false,dSum=0,dN=0;
+          for(const pt of smoothed){
+            if(pt.ch<ch_i-1e-6||pt.ch>ch_ni+1e-6) continue;
+            const t=(pt.ch-ch_i)/segLen;
+            const d=pt.rl-(inv_i-drop*t);
+            if(d<offset-0.001){bad=true;break;}
+            dSum+=d;dN++;
+          }
+          if(bad) continue;
+          const avgD=dN>0?dSum/dN:(invArr[i][j]+invArr[ni][k])/2;
+          const rCost=restraintCost(grade,segLen,p.pipeLen,R);
+          const eCost=excCost(segLen,avgD,p.trenchW,p.rateExc,p.rateBackfill,p.ratePipe);
+          const nc=dp[i][j].cost+rCost+eCost;
+          if(nc<dp[ni][k].cost){dp[ni][k].cost=nc;dp[ni][k].prevI=i;dp[ni][k].prevJ=j;}
+        }
+      }
+    }
+  }
+
+  // Backtrack best
+  const endBest=invArr[N-1].map((_,k)=>({k,cost:dp[N-1][k].cost}))
+    .filter(e=>e.cost<Infinity).sort((a,b)=>a.cost-b.cost)[0];
+  if(!endBest) return null;
+
+  const bps=[];
+  let ci=N-1,cj=endBest.k;
+  while(ci>=0){
+    bps.unshift({ch:bpChs[ci],inv:invArr[ci][cj]});
+    const{prevI,prevJ}=dp[ci][cj]; ci=prevI; cj=prevJ;
+  }
+
+  const result=buildSegments(bps,smoothed,p,R);
+  if(!result) return null;
+  return {name, desc, colour, ...result, path:bps, strategy:'dp'};
+}
+
+// ═══════════════════════════════════════════════
+// GLOBALS
+// ═══════════════════════════════════════════════
+let _results=[], _profile=[], _smoothed=[], _params={};
+let _selectedIdx=0;
+let _activeRes=null, _activeIdx=0;
+
+// ═══════════════════════════════════════════════
+// RUN ALL STRATEGIES
+// ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// AUTO-FILL CONSTRAINTS
+// ═══════════════════════════════════════════════
+function autoFillConstraints(){
+  const raw=parseProfile(document.getElementById('profileInput').value);
+  if(raw.length<2){
+    document.getElementById('autoFillStatus').textContent='⚠ Paste your profile data first.';
+    return;
+  }
+  const smoothPasses=+document.getElementById('smoothing').value||0;
+  const sm=smoothPasses>0?smoothProfile(raw,smoothPasses):raw;
+  const minCov=+document.getElementById('minCover').value||0.6;
+  const pOD=+document.getElementById('pipeOD').value||0.324;
+  const bed=+document.getElementById('bedding').value||0.15;
+  const minGr=+document.getElementById('minGrade').value||0.2;
+  const offset=minCov+pOD+bed;
+
+  const ch0=sm[0].ch, chN=sm[sm.length-1].ch;
+  const inv0=sm[0].rl-offset;
+
+  // Calculate shallowest end invert: start at inv0, apply min grade continuously
+  // but also must always be below (surfRL - offset) at every point
+  let minEndInv=inv0-(minGr/100)*(chN-ch0);
+  // Also check it doesn't poke above cover envelope at any point
+  for(const pt of sm){
+    if(pt.ch<=ch0) continue;
+    const t=(pt.ch-ch0)/(chN-ch0);
+    const invAtPt=inv0+(minEndInv-inv0)*t;
+    const maxInvPt=pt.rl-offset;
+    if(invAtPt>maxInvPt){
+      // Need to steepen — project from here
+      const neededDrop=(invAtPt-maxInvPt);
+      minEndInv -= neededDrop;
+    }
+  }
+  // Round to 3dp
+  const startInv=Math.round(inv0*1000)/1000;
+  const endInv=Math.round(minEndInv*1000)/1000;
+
+  document.getElementById('startCh').value=ch0.toFixed(2);
+  document.getElementById('endCh').value=chN.toFixed(2);
+  document.getElementById('startInvert').value=startInv.toFixed(3);
+  document.getElementById('endInvert').value=endInv.toFixed(3);
+
+  const totalLen=chN-ch0;
+  const actualGrade=((startInv-endInv)/totalLen*100).toFixed(2);
+  document.getElementById('autoFillStatus').innerHTML=
+    `✓ Filled: Ch ${ch0.toFixed(1)}–${chN.toFixed(1)}m · Start IL ${startInv.toFixed(3)} · End IL ${endInv.toFixed(3)} · Overall grade ${actualGrade}%`;
+}
+
+function clearConstraints(){
+  ['startCh','endCh','startInvert','endInvert'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  document.getElementById('autoFillStatus').textContent='Cleared.';
+}
+
+// Apply fixed start/end inverts to a path array
+function applyFixedInverts(bps, p){
+  if(p.startInvert!==null){
+    // Override first point — if this violates cover we return null downstream
+    bps[0]={...bps[0],inv:p.startInvert};
+  }
+  if(p.endInvert!==null){
+    bps[bps.length-1]={...bps[bps.length-1],inv:p.endInvert};
+  }
+  return bps;
+}
+
+async function runAll(){
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true;
+  setStatus('Parsing profile...');
+  await sleep(10);
+
+  const _si=document.getElementById('startInvert').value.trim();
+  const _ei=document.getElementById('endInvert').value.trim();
+  const _sc=document.getElementById('startCh').value.trim();
+  const _ec=document.getElementById('endCh').value.trim();
+  const p={
+    minCover:   +v('minCover'), pipeOD:+v('pipeOD'), bedding:+v('bedding'),
+    trenchW:    +v('trenchW'),  pipeLen:+v('pipeLen'),
+    minGrade:   +v('minGrade'), smoothing:+v('smoothing'),
+    minSegLen:  +v('minSegLen'),maxSegLen:+v('maxSegLen'),
+    maxCover:   +v('maxCover')||3.0,
+    maxGradeChange: +v('maxGradeChange')||15,
+    rateExc:    +v('rateExc'),  rateBackfill:+v('rateBackfill'),
+    ratePipe:   +v('ratePipe'),
+    rateTS:     +v('rateTS'),   rateBH:+v('rateBH'),
+    rateEnc:    +v('rateEnc'),  rateSpecial:+v('rateSpecial'),
+    startInvert: _si!==''?+_si:null,
+    endInvert:   _ei!==''?+_ei:null,
+    startCh:     _sc!==''?+_sc:null,
+    endCh:       _ec!==''?+_ec:null,
+  };
+  _params=p;
+  const R={ts:p.rateTS,bh:p.rateBH,enc:p.rateEnc,special:p.rateSpecial};
+  const offset=p.minCover+p.pipeOD+p.bedding;
+
+  const raw=parseProfile(document.getElementById('profileInput').value);
+  if(raw.length<2){setStatus('⚠ Need at least 2 profile points.',true);btn.disabled=false;return;}
+  _profile=raw;
+  let sm=p.smoothing>0?smoothProfile(raw,p.smoothing):raw;
+
+  // Clip profile to startCh / endCh if specified
+  if(p.startCh!==null) sm=sm.filter(pt=>pt.ch>=p.startCh-1e-6);
+  if(p.endCh!==null)   sm=sm.filter(pt=>pt.ch<=p.endCh+1e-6);
+  if(sm.length<2){setStatus('⚠ Start/End chainage leaves fewer than 2 profile points.',true);btn.disabled=false;return;}
+  _smoothed=sm;
+
+  showProgress(true); setProgress(5);
+  setStatus('Running strategies...');
+  await sleep(10);
+
+  const results=[];
+
+  // ── Strategy 1: Shallowest possible — follow terrain, grade = whatever comes out
+  setStatus('Strategy 1/6: Shallow follow-terrain...');
+  setProgress(10); await sleep(0);
+  const s1=runShallowStrategy(
+    'Shallow — Follow Terrain',
+    'Pipe sits as close to surface as cover allows. Grade mirrors terrain. No extra excavation — restraint cost depends on what grades result.',
+    '#00c8a0', sm, p, R, offset);
+  if(s1){
+    const bps1f=applyFixedInverts([...s1.path],p);
+    const s1f=buildSegments(bps1f,sm,p,R);
+    if(s1f) results.push({...s1,...s1f,path:bps1f,name:s1.name,desc:s1.desc,colour:s1.colour,strategy:s1.strategy});
+    else if(!p.startInvert&&!p.endInvert) results.push(s1);
+  }
+
+  // ── Strategy 2: DP optimised — unconstrained best cost
+  setStatus('Strategy 2/6: DP — unconstrained optimal...');
+  setProgress(25); await sleep(0);
+  const s2=runDPStrategy(
+    'DP Optimal — Unconstrained',
+    'Dynamic programming finds the globally cheapest combination of depth and restraint. No grade preference — just least total cost.',
+    '#38bdf8', 0.25, 4.0, sm, p, R, offset, 50);
+  if(s2) results.push(s2);
+
+  // ── Strategy 3: Force grade ≤ 14% everywhere (trenchstops only, no bulkheads)
+  //    Achieve this by digging deeper where terrain would otherwise be steeper
+  setStatus('Strategy 3/6: Deep — cap grade at 14% (trenchstops only)...');
+  setProgress(45); await sleep(0);
+  const s3=runDPStrategy(
+    'Deep — Max 14% Grade (Trenchstops Only)',
+    'Pipeline dug deeper at steep sections to keep grade below 15% everywhere. Eliminates bulkheads and encasement entirely — only trenchstops required per Table 7.5.',
+    '#fbbf24', 0.25, 8.0, sm, p, R, offset, 14.99);
+  if(s3) results.push(s3);
+
+  // ── Strategy 4: Force grade ≤ 29% everywhere (bulkheads max, no encasement)
+  setStatus('Strategy 4/6: Moderate depth — cap grade at 29%...');
+  setProgress(60); await sleep(0);
+  const s4=runDPStrategy(
+    'Moderate — Max 29% Grade (Bulkheads, No Encasement)',
+    'Dig just deep enough to keep grade under 30% at all times. Avoids expensive continuous encasement — only bulkheads and trenchstops.',
+    '#fb923c', 0.2, 6.0, sm, p, R, offset, 29.99);
+  if(s4) results.push(s4);
+
+  // ── Strategy 5: Shallow but allow full grade spectrum — absolute minimum excavation
+  setStatus('Strategy 5/6: Minimum excavation — accept all restraint types...');
+  setProgress(75); await sleep(0);
+  const s5=runDPStrategy(
+    'Minimum Excavation — Accept Any Restraint',
+    'Stay as shallow as possible regardless of grade. May require encasement or special design on steep sections. Lowest excavation cost, highest restraint cost.',
+    '#f472b6', 0.05, 0.5, sm, p, R, offset, 50);
+  if(s5) results.push(s5);
+
+  // ── Strategy 6: Single straight grade end-to-end
+  setStatus('Strategy 6/6: Single constant grade...');
+  setProgress(88); await sleep(0);
+  // Find minimum constant grade that satisfies cover everywhere
+  const ch0=sm[0].ch, chN=sm[sm.length-1].ch, totalLen=chN-ch0;
+  const startInv=maxInv(ch0,sm,offset);
+  let minReqGrade=0;
+  for(const pt of sm){
+    if(pt.ch<=ch0) continue;
+    const len=pt.ch-ch0;
+    const needed=(startInv-maxInv(pt.ch,sm,offset))/len*100;
+    if(needed>minReqGrade) minReqGrade=needed;
+  }
+  const constGrade=Math.max(p.minGrade, Math.ceil(minReqGrade*10)/10);
+  const bpChs6=makeBreakPts(sm, p.minSegLen, p.maxSegLen);
+  let bps6=bpChs6.map(ch=>({ch, inv:startInv-(constGrade/100)*(ch-ch0)}));
+  bps6=applyFixedInverts(bps6,p);
+  const s6result=buildSegments(bps6,sm,p,R);
+  if(s6result){
+    results.push({
+      name:`Single Grade — ${constGrade.toFixed(1)}% End-to-End`,
+      desc:`One constant grade from start to finish (${constGrade.toFixed(1)}%) — the minimum needed to clear terrain with cover. Simple design, easy to construct.`,
+      colour:'#a78bfa', ...s6result, path:bps6, strategy:'constant'
+    });
+  }
+
+  setProgress(100); await sleep(80);
+  showProgress(false);
+
+  if(results.length===0){
+    setStatus('⚠ No valid strategies found. Check profile data.',true);
+    btn.disabled=false; return;
+  }
+
+  // Sort by cost
+  results.sort((a,b)=>a.cost-b.cost);
+  results.forEach((r,i)=>{r.rank=i+1;});
+
+  _results=results;
+  _selectedIdx=0;
+
+  setStatus(`✓ ${results.length} strategies — cheapest $${fmt(results[0].cost)}`);
+  btn.disabled=false;
+
+  renderResults(results);
+  buildToggleBar(results);
+  renderChart(results);
+  switchTab('scenarios-pane', document.querySelectorAll('.tab')[1]);
+}
+
+// ═══════════════════════════════════════════════
+// RENDER STRATEGY CARDS
+// ═══════════════════════════════════════════════
+function renderResults(results){
+  const best=results[0];
+  document.getElementById('kpiRow').innerHTML=`
+    <div class="kc best">
+      <div class="kl">Cheapest Strategy</div>
+      <div class="kv g">$${fmt(best.cost)}</div>
+      <div class="ks">${best.name}</div>
+    </div>
+    <div class="kc">
+      <div class="kl">Cost Range</div>
+      <div class="kv a">$${fmt(results[results.length-1].cost-best.cost)}</div>
+      <div class="ks">spread across ${results.length} strategies</div>
+    </div>
+    <div class="kc">
+      <div class="kl">Strategies Compared</div>
+      <div class="kv">${results.length}</div>
+      <div class="ks">click any card for segment detail</div>
+    </div>`;
+
+  const wb=document.getElementById('warnBox'); wb.innerHTML='';
+  const warns=[];
+  if(best.specials>0) warns.push(`⚠ ${best.specials} segment(s) with grade >50% — AS/NZS 2566.2 requires specialist design.`);
+  if(best.deepFlags>0) warns.push(`⚠ ${best.deepFlags} segment(s) exceed max cover (${_params.maxCover||3.0}m) — trench shoring/support design required per WorkSafe.`);
+  if(best.gradeChangeFlags>0) warns.push(`⚠ ${best.gradeChangeFlags} grade break(s) exceed ${_params.maxGradeChange||15}° angular change — check joint deflection limits for pipe class.`);
+  if(warns.length) wb.innerHTML=warns.map(w=>`<div class="warn-box">${w}</div>`).join('');
+
+  const grid=document.getElementById('strategyGrid'); grid.innerHTML='';
+  results.forEach((res,idx)=>{
+    const isB=idx===0;
+    const card=document.createElement('div');
+    card.className='strat-card'+(isB?' active-card':'');
+    card.innerHTML=`
+      <div class="strat-head">
+        <div class="strat-swatch" style="background:${res.colour};"></div>
+        <div>
+          <div class="strat-name">${res.name}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">Strategy ${String.fromCharCode(65+idx)}</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;">
+          <div class="strat-cost" style="color:${isB?'var(--accent)':'var(--text)'};">$${fmt(res.cost)}</div>
+          ${isB?`<span class="strat-tag tag-best">CHEAPEST</span>`:
+                `<span class="strat-tag tag-alt">+$${fmt(res.cost-results[0].cost)}</span>`}
+        </div>
+      </div>
+      <div class="strat-stats">
+        <div><div class="ss-l">Avg Grade</div><div class="ss-v">${res.avgGrade.toFixed(1)}%</div></div>
+        <div><div class="ss-l">Trenchstops</div><div class="ss-v">${res.totalTS}</div></div>
+        <div><div class="ss-l">Bulkheads</div><div class="ss-v">${res.totalBH}</div></div>
+        <div><div class="ss-l">Encasement</div><div class="ss-v">${res.totalEncLen.toFixed(0)}m</div></div>
+        <div><div class="ss-l">Segments</div><div class="ss-v">${res.segs.length}</div></div>
+        <div><div class="ss-l">Restraint $</div><div class="ss-v">$${fmt(res.totalRest)}</div></div>
+        <div><div class="ss-l">Exc+Pipe $</div><div class="ss-v">$${fmt(res.totalExc)}</div></div>
+        <div><div class="ss-l">Break Pts</div><div class="ss-v">${res.path.length}</div></div>
+      </div>
+      <div style="padding:4px 12px 5px;display:flex;gap:3px;flex-wrap:wrap;">
+        ${res.deepFlags>0?'<span class="rule-pill rule-warn">⚠ '+res.deepFlags+' deep</span>':''}
+        ${res.gradeChangeFlags>0?'<span class="rule-pill rule-warn">⚠ '+res.gradeChangeFlags+' sharp break'+(res.gradeChangeFlags>1?'s':'')+'</span>':''}
+        ${res.specials>0?'<span class="rule-pill rule-fail">⛔ '+res.specials+' specialist</span>':''}
+        ${res.deepFlags===0&&res.gradeChangeFlags===0&&res.specials===0?'<span class="rule-pill rule-ok">✓ All design rules pass</span>':''}
+      </div>
+      <div class="strat-desc">${res.desc}</div>`;
+    card.addEventListener('click',()=>{
+      document.querySelectorAll('.strat-card').forEach(c=>c.classList.remove('active-card'));
+      card.classList.add('active-card');
+      // Also select in toggle bar
+      _selectedIdx=idx;
+      document.querySelectorAll('#chartToggles .scen-btn').forEach((b,i)=>{
+        b.classList.toggle('active',i===idx);
+      });
+      updateChartDesc(res);
+      showSegDetail(res,idx);
+    });
+    grid.appendChild(card);
+  });
+
+  document.getElementById('scenEmpty').style.display='none';
+  document.getElementById('scenarioContent').style.display='block';
+}
+
+// ═══════════════════════════════════════════════
+// SEGMENT DETAIL
+// ═══════════════════════════════════════════════
+function showSegDetail(res,idx){
+  _activeRes=res; _activeIdx=idx;
+  document.getElementById('segEmpty').style.display='none';
+  document.getElementById('segmentContent').style.display='block';
+  document.getElementById('segTitle').innerHTML=
+    `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${res.colour};margin-right:6px;"></span>${res.name}`;
+
+  document.getElementById('segKpiRow').innerHTML=`
+    <div class="kc"><div class="kl">Restraint Cost</div><div class="kv">$${fmt(res.totalRest)}</div>
+    <div class="ks">${res.totalTS} TS · ${res.totalBH} BH · ${res.totalEncLen.toFixed(0)}m enc</div></div>
+    <div class="kc"><div class="kl">Excavation + Pipe</div><div class="kv">$${fmt(res.totalExc)}</div></div>
+    <div class="kc best"><div class="kl">Total Cost</div><div class="kv g">$${fmt(res.cost)}</div></div>`;
+
+  const wbs=document.getElementById('warnBoxSeg'); wbs.innerHTML='';
+  const segWarns=[];
+  const flat=res.segs.filter(s=>s.grade<0.01);
+  if(flat.length) segWarns.push(`ℹ ${flat.length} flat/sump segment(s) — confirm air valve placement at low points.`);
+  if(res.deepFlags>0) segWarns.push(`⚠ ${res.deepFlags} segment(s) exceed ${_params.maxCover||3.0}m cover — shoring design required.`);
+  if(res.gradeChangeFlags>0) segWarns.push(`⚠ ${res.gradeChangeFlags} grade break(s) exceed ${_params.maxGradeChange||15}° angular change — verify joint deflection.`);
+  if(res.specials>0) segWarns.push(`⛔ ${res.specials} segment(s) at grade >50% — specialist design required per AS/NZS 2566.2 Table 7.5.`);
+  if(segWarns.length) wbs.innerHTML=segWarns.map(w=>`<div class="warn-box">${w}</div>`).join('');
+
+  const tbody=document.getElementById('segmentBody'); tbody.innerHTML='';
+  res.segs.forEach(seg=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${seg.no}</td><td>${seg.chStart.toFixed(1)}</td><td>${seg.chEnd.toFixed(1)}</td>
+      <td>${seg.len.toFixed(1)}</td>
+      <td><span class="gp ${seg.cls}">${seg.grade.toFixed(2)}%</span></td>
+      <td>${seg.invStart.toFixed(3)}</td><td>${seg.invEnd.toFixed(3)}</td>
+      <td>${seg.avgDepth.toFixed(2)}m</td>
+      <td><span class="gp ${seg.cls}">${seg.restraint}</span></td>
+      <td>${seg.spacing}</td><td>${seg.nUnits}</td>
+      <td>$${fmt(seg.restCost)}</td><td>$${fmt(seg.excCost)}</td>
+      <td><strong>$${fmt(seg.total)}</strong></td>`;
+    tbody.appendChild(tr);
+  });
+  // Totals row
+  const tf=document.createElement('tr');
+  tf.innerHTML=`<td colspan="11" style="text-align:right;color:var(--muted);">TOTALS</td>
+    <td>$${fmt(res.totalRest)}</td><td>$${fmt(res.totalExc)}</td>
+    <td style="color:var(--accent);">$${fmt(res.cost)}</td>`;
+  tbody.appendChild(tf);
+
+  switchTab('segments-pane',document.querySelectorAll('.tab')[2]);
+}
+
+function exportCSV(){
+  if(!_activeRes) return;
+  const hdr=['Seg','Ch Start','Ch End','Len','Grade%','Inv Start','Inv End','Avg Depth','Restraint','Spacing','Units','Restraint$','Exc+Pipe$','Total$'];
+  const rows=_activeRes.segs.map(s=>[
+    s.no,s.chStart.toFixed(1),s.chEnd.toFixed(1),s.len.toFixed(1),s.grade.toFixed(3),
+    s.invStart.toFixed(3),s.invEnd.toFixed(3),s.avgDepth.toFixed(3),
+    s.restraint,s.spacing,s.nUnits,s.restCost.toFixed(0),s.excCost.toFixed(0),s.total.toFixed(0)
+  ]);
+  const csv=[hdr,...rows].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`strategy_${String.fromCharCode(65+_activeIdx)}.csv`;
+  a.click();
+}
+
+// ═══════════════════════════════════════════════
+// TOGGLE BAR — single select
+// ═══════════════════════════════════════════════
+function buildToggleBar(results){
+  const bar=document.getElementById('chartToggles');
+  bar.innerHTML='<span class="toggle-label">Strategy:</span>';
+  _selectedIdx=0;
+  results.forEach((res,idx)=>{
+    const btn=document.createElement('div');
+    btn.className='scen-btn'+(idx===0?' active':'');
+    btn.style.color=res.colour;
+    btn.dataset.idx=idx;
+    btn.innerHTML=`<div class="sw" style="background:${res.colour};"></div><span>${String.fromCharCode(65+idx)} — ${res.name}</span>`;
+    btn.addEventListener('click',()=>{
+      _selectedIdx=idx;
+      bar.querySelectorAll('.scen-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      updateChartDesc(results[idx]);
+      renderChart(_results);
+    });
+    bar.appendChild(btn);
+  });
+  updateChartDesc(results[0]);
+}
+
+function updateChartDesc(res){
+  const ltr=String.fromCharCode(65+_results.indexOf(res));
+  document.getElementById('chartDescRow').innerHTML=
+    `<strong style="color:${res.colour};">${ltr} — ${res.name}</strong>${res.desc}`;
+}
+
+// ═══════════════════════════════════════════════
+// CHART — single strategy view
+// ═══════════════════════════════════════════════
+// CMP brand colours for restraint zones
+const RCOLS={
+  None:'#377731',          // Dark Green
+  'Flat/Sump':'#798C6C',   // Forest
+  Trenchstop:'#182C69',    // Dark Blue
+  Bulkhead:'#f5a623',      // Amber (warn)
+  Encasement:'#E31B23',    // CMP Red
+  Special:'#7c3aed'        // Purple
+};
+const RFILLS={
+  None:'rgba(55,119,49,0.08)',
+  'Flat/Sump':'rgba(121,140,108,0.08)',
+  Trenchstop:'rgba(24,44,105,0.08)',
+  Bulkhead:'rgba(245,166,35,0.10)',
+  Encasement:'rgba(227,27,35,0.08)',
+  Special:'rgba(124,58,237,0.08)'
+};
+
+function renderChart(results){
+  document.getElementById('chartEmpty').style.display='none';
+  const canvas=document.getElementById('profileCanvas');
+  const cont=document.getElementById('chart-container');
+  canvas.width=cont.clientWidth; canvas.height=cont.clientHeight;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+
+  // Reserve bottom strip for restraint band
+  const BAND=28; // px height of restraint band
+  const pad={top:28,right:32,bottom:46+BAND,left:62};
+  const pw=W-pad.left-pad.right, ph=H-pad.top-pad.bottom;
+
+  const profile=_profile, sm=_smoothed;
+  const offset=_params.minCover+_params.pipeOD+_params.bedding;
+  const res=results[_selectedIdx];
+  const col=res.colour;
+
+  // RL bounds from selected strategy only
+  const allRLs=[...sm.map(p=>p.rl), ...res.path.map(pt=>pt.inv), ...sm.map(p=>p.rl-offset)];
+  const minRL=Math.min(...allRLs)-0.4;
+  const maxRL=Math.max(...allRLs)+0.5;
+  const minCh=profile[0].ch, maxCh=profile[profile.length-1].ch;
+
+  const xp=ch=>pad.left+(ch-minCh)/(maxCh-minCh)*pw;
+  const yp=rl=>pad.top+(1-(rl-minRL)/(maxRL-minRL))*ph;
+  const bandY=H-pad.bottom+BAND+4; // top of restraint band area (below axis)
+  const bandTop=H-BAND-22; // where the restraint strip starts
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#F5F6F8';
+  ctx.fillRect(0,0,W,H);
+
+  // ── Grid ──────────────────────────────────────
+  ctx.strokeStyle='#D9D9D7'; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+  const rlStep=niceStep((maxRL-minRL)/6);
+  for(let rl=Math.ceil(minRL/rlStep)*rlStep;rl<=maxRL;rl+=rlStep){
+    const y=yp(rl);
+    if(y<pad.top||y>H-pad.bottom) continue;
+    ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.stroke();
+    ctx.fillStyle='#6B7280';ctx.font='9px IBM Plex Mono,monospace';ctx.textAlign='right';
+    ctx.fillText(rl.toFixed(2),pad.left-4,y+3);
+  }
+  const chStep=niceStep((maxCh-minCh)/8);
+  for(let ch=Math.ceil(minCh/chStep)*chStep;ch<=maxCh;ch+=chStep){
+    const x=xp(ch);
+    ctx.beginPath();ctx.moveTo(x,pad.top);ctx.lineTo(x,H-pad.bottom);ctx.stroke();
+    ctx.fillStyle='#6B7280';ctx.font='9px IBM Plex Mono,monospace';ctx.textAlign='center';
+    ctx.fillText(ch.toFixed(0)+'m',x,H-pad.bottom+13);
+  }
+  ctx.setLineDash([]);
+
+  // Axis labels
+  ctx.fillStyle='#3A3A3A';ctx.font='10px Nunito Sans,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Chainage (m)',W/2,H-3);
+  ctx.save();ctx.translate(11,pad.top+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('RL (m AHD)',0,0);ctx.restore();
+
+  // ── Surface ───────────────────────────────────
+  // Fill
+  ctx.beginPath();
+  ctx.moveTo(xp(profile[0].ch),yp(profile[0].rl));
+  for(const pt of profile) ctx.lineTo(xp(pt.ch),yp(pt.rl));
+  ctx.lineTo(xp(profile[profile.length-1].ch),H-pad.bottom);
+  ctx.lineTo(xp(profile[0].ch),H-pad.bottom);
+  ctx.closePath();
+  ctx.fillStyle='rgba(82,127,192,0.08)';ctx.fill();
+  // Raw line
+  ctx.beginPath();
+  ctx.moveTo(xp(profile[0].ch),yp(profile[0].rl));
+  for(const pt of profile) ctx.lineTo(xp(pt.ch),yp(pt.rl));
+  ctx.strokeStyle='rgba(82,127,192,0.3)';ctx.lineWidth=1;ctx.stroke();
+  // Smoothed
+  if(_params.smoothing>0){
+    ctx.beginPath();
+    ctx.moveTo(xp(sm[0].ch),yp(sm[0].rl));
+    for(const pt of sm) ctx.lineTo(xp(pt.ch),yp(pt.rl));
+    ctx.strokeStyle='#527FC0';ctx.lineWidth=2;ctx.stroke();
+  }
+
+  // Cover envelope
+  ctx.beginPath();
+  ctx.moveTo(xp(sm[0].ch),yp(sm[0].rl-offset));
+  for(const pt of sm) ctx.lineTo(xp(pt.ch),yp(pt.rl-offset));
+  ctx.strokeStyle='#f5a623';ctx.lineWidth=1.2;ctx.setLineDash([5,4]);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── Per-segment: fill between surface & invert, pipe line, grade label ──
+  for(let s=0;s<res.segs.length;s++){
+    const seg=res.segs[s];
+    const a=res.path[s], b=res.path[s+1];
+    const rcol=RCOLS[seg.restraint]||col;
+    const rfill=RFILLS[seg.restraint]||'rgba(0,200,160,0.1)';
+
+    // Shaded excavation zone (between invert line and cover envelope)
+    ctx.beginPath();
+    ctx.moveTo(xp(a.ch),yp(a.inv));
+    ctx.lineTo(xp(b.ch),yp(b.inv));
+    // Walk back along cover envelope
+    const subPts=sm.filter(pt=>pt.ch>=a.ch-1e-6&&pt.ch<=b.ch+1e-6);
+    for(let i=subPts.length-1;i>=0;i--) ctx.lineTo(xp(subPts[i].ch),yp(subPts[i].rl-offset));
+    ctx.closePath();
+    ctx.fillStyle=rfill;ctx.fill();
+
+    // Pipe line — coloured by restraint
+    ctx.beginPath();
+    ctx.moveTo(xp(a.ch),yp(a.inv));
+    ctx.lineTo(xp(b.ch),yp(b.inv));
+    ctx.strokeStyle=rcol;ctx.lineWidth=3;ctx.stroke();
+
+    // Grade label on segment midpoint
+    const midCh=(a.ch+b.ch)/2;
+    const midInv=(a.inv+b.inv)/2;
+    const lx=xp(midCh), ly=yp(midInv)-8;
+    const glbl=`${seg.grade.toFixed(1)}%`;
+    ctx.font='bold 9px IBM Plex Mono,monospace';
+    const tw=ctx.measureText(glbl).width;
+    ctx.fillStyle='rgba(255,255,255,0.85)';
+    ctx.fillRect(lx-tw/2-3,ly-9,tw+6,12);
+    ctx.fillStyle=rcol;
+    ctx.textAlign='center';
+    ctx.fillText(glbl,lx,ly);
+  }
+
+  // Grade break markers
+  res.path.forEach(pt=>{
+    ctx.beginPath();
+    ctx.arc(xp(pt.ch),yp(pt.inv),3.5,0,Math.PI*2);
+    ctx.fillStyle=col;ctx.fill();
+    ctx.strokeStyle='#FFFFFF';ctx.lineWidth=1.5;ctx.stroke();
+  });
+
+  // ── RESTRAINT BAND ────────────────────────────
+  // Strip below the chainage axis showing restraint type as coloured rectangles
+  const stripTop=H-BAND-20;
+  const stripH=16;
+
+  // Background
+  ctx.fillStyle='rgba(240,242,246,0.95)';
+  ctx.fillRect(pad.left,stripTop,pw,stripH+4);
+  ctx.strokeStyle='#D9D9D7';ctx.lineWidth=1;
+  ctx.strokeRect(pad.left,stripTop,pw,stripH+4);
+
+  // Label
+  ctx.fillStyle='#6B7280';ctx.font='8px Nunito Sans,sans-serif';ctx.textAlign='right';
+  ctx.fillText('Restraint:',pad.left-3,stripTop+stripH/2+3);
+
+  for(let s=0;s<res.segs.length;s++){
+    const seg=res.segs[s];
+    const rcol=RCOLS[seg.restraint]||col;
+    const x1=xp(seg.chStart), x2=xp(seg.chEnd);
+    const rw=x2-x1;
+
+    if(seg.restraint==='None'||seg.restraint==='Flat/Sump'){
+      // No marker for no-restraint — just a faint line
+      ctx.fillStyle='rgba(74,222,128,0.08)';
+      ctx.fillRect(x1+1,stripTop+1,rw-2,stripH+2);
+    } else if(seg.restraint==='Encasement'){
+      // Solid bar for encasement
+      ctx.fillStyle=rcol+'55';
+      ctx.fillRect(x1+1,stripTop+1,rw-2,stripH+2);
+      ctx.strokeStyle=rcol;ctx.lineWidth=1.5;
+      ctx.strokeRect(x1+1,stripTop+1,rw-2,stripH+2);
+      if(rw>30){
+        ctx.fillStyle=rcol;ctx.font='8px Nunito Sans,sans-serif';ctx.textAlign='center';
+        ctx.fillText('ENC',x1+rw/2,stripTop+stripH/2+4);
+      }
+    } else {
+      // Trenchstop / Bulkhead / Special — draw individual markers spaced along segment
+      const spacing=parseFloat(seg.spacing)||20;
+      const totalLen=seg.len;
+      const markerW=seg.restraint==='Bulkhead'?5:3;
+      const markerCol=rcol;
+      let pos=spacing/2; // first marker offset
+      while(pos<totalLen){
+        const mx=xp(seg.chStart+pos);
+        ctx.fillStyle=markerCol;
+        ctx.fillRect(mx-markerW/2,stripTop+2,markerW,stripH);
+        pos+=spacing;
+      }
+      // Label once in segment if wide enough
+      if(rw>40){
+        ctx.fillStyle=rcol;ctx.font='8px Nunito Sans,sans-serif';ctx.textAlign='center';
+        ctx.fillText(seg.restraint==='Trenchstop'?'TS':'BH',x1+rw/2,stripTop-3);
+      }
+    }
+
+    // Segment boundary tick
+    ctx.strokeStyle='#D9D9D7';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x1,stripTop);ctx.lineTo(x1,stripTop+stripH+4);ctx.stroke();
+  }
+  // Close last boundary
+  ctx.strokeStyle='#D9D9D7';ctx.lineWidth=1;
+  const lastSeg=res.segs[res.segs.length-1];
+  const lastX=xp(lastSeg.chEnd);
+  ctx.beginPath();ctx.moveTo(lastX,stripTop);ctx.lineTo(lastX,stripTop+stripH+4);ctx.stroke();
+
+  // ── Summary label top-right ───────────────────
+  const ltr=String.fromCharCode(65+_selectedIdx);
+  ctx.font='bold 11px Nunito Sans,sans-serif';ctx.textAlign='right';
+  ctx.fillStyle=col;
+  ctx.fillText(`${ltr}  $${fmt(res.cost)}`,W-pad.right-4,pad.top+14);
+  ctx.font='9px IBM Plex Mono,monospace';ctx.fillStyle='#6B7280';
+  ctx.fillText(`${res.totalTS} TS · ${res.totalBH} BH · ${res.totalEncLen.toFixed(0)}m enc · avg ${res.avgGrade.toFixed(1)}%`,W-pad.right-4,pad.top+27);
+
+  // ── Fixed invert markers ─────────────────────────────────────
+  if(_params.startInvert!==null){
+    const sx=xp(sm[0].ch), sy=yp(_params.startInvert);
+    ctx.beginPath();ctx.moveTo(sx,sy-10);ctx.lineTo(sx,sy+10);
+    ctx.strokeStyle='#E31B23';ctx.lineWidth=2.5;ctx.stroke();
+    ctx.fillStyle='#E31B23';
+    ctx.font='bold 9px Nunito Sans,sans-serif';ctx.textAlign='left';
+    ctx.fillText(`START IL ${_params.startInvert.toFixed(3)}m`,sx+5,sy-3);
+  }
+  if(_params.endInvert!==null){
+    const ex=xp(sm[sm.length-1].ch), ey=yp(_params.endInvert);
+    ctx.beginPath();ctx.moveTo(ex,ey-10);ctx.lineTo(ex,ey+10);
+    ctx.strokeStyle='#E31B23';ctx.lineWidth=2.5;ctx.stroke();
+    ctx.fillStyle='#E31B23';
+    ctx.font='bold 9px Nunito Sans,sans-serif';ctx.textAlign='right';
+    ctx.fillText(`END IL ${_params.endInvert.toFixed(3)}m`,ex-5,ey-3);
+  }
+
+  document.getElementById('chartInfo').textContent=
+    `${results.length} strategies total · ${String.fromCharCode(65+_selectedIdx)} = $${fmt(res.cost)}`;
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function v(id){return document.getElementById(id).value;}
+function fmt(n){return Math.round(n).toLocaleString();}
+function niceStep(r){const p=Math.pow(10,Math.floor(Math.log10(r)));const f=r/p;return f<1.5?p:f<3?2*p:f<7?5*p:10*p;}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function setStatus(msg,err=false){const el=document.getElementById('runStatus');el.textContent=msg;el.style.color=err?'var(--danger)':'var(--muted)';}
+function showProgress(s){document.getElementById('progressWrap').style.display=s?'block':'none';}
+function setProgress(p){document.getElementById('progressBar').style.width=p+'%';}
+
+function switchTab(paneId,tabEl){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  tabEl.classList.add('active');
+  document.getElementById(paneId).classList.add('active');
+  if(paneId==='profile-pane'&&_results.length>0) requestAnimationFrame(()=>renderChart(_results));
+}
+
+// ═══════════════════════════════════════════════
+// GLOBAL TOOLTIP — body-level, never clipped
+// ═══════════════════════════════════════════════
+(function(){
+  const tip = document.getElementById('tip-global');
+  let hideTimer;
+
+  document.addEventListener('mouseover', e => {
+    const btn = e.target.closest('.tip-btn');
+    if (!btn || !btn.dataset.tip) return;
+    clearTimeout(hideTimer);
+    const rect = btn.getBoundingClientRect();
+    tip.textContent = btn.dataset.tip;
+    tip.style.display = 'block';
+    // Position: right of button, vertically centred on it
+    const tipW = 240, margin = 8;
+    let left = rect.right + margin;
+    let top  = rect.top + rect.height/2 - 14; // align arrow to btn centre
+    // If goes off right edge, flip left
+    if (left + tipW > window.innerWidth - 8) {
+      left = rect.left - tipW - margin;
+      tip.style.setProperty('--arrow-side', 'left');
+      tip.style.cssText += ';';
+      // Move arrow to right side for flipped
+      tip.style.removeProperty('--arrow-side');
+    }
+    // Clamp vertically
+    const tipH = tip.offsetHeight || 80;
+    top = Math.max(8, Math.min(top, window.innerHeight - tipH - 8));
+    tip.style.left = left + 'px';
+    tip.style.top  = top + 'px';
+  });
+
+  document.addEventListener('mouseout', e => {
+    const btn = e.target.closest('.tip-btn');
+    if (!btn) return;
+    hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 80);
+  });
+})();
+
+// ═══════════════════════════════════════════════
+// RANDOM TERRAIN GENERATOR
+// ═══════════════════════════════════════════════
+function loadDemo(){
+  // Seeded pseudo-random for reproducibility within a session
+  const seed = Date.now();
+  let s = seed;
+  function rand(){ s=(s*1664525+1013904223)&0xffffffff; return (s>>>0)/0xffffffff; }
+  function randRange(lo,hi){ return lo+(hi-lo)*rand(); }
+
+  // Randomise terrain characteristics each click
+  const totalLen = Math.round(randRange(150, 350) / 10) * 10;  // 150–350m
+  const startRL  = Math.round(randRange(60, 110) * 100) / 100; // start elevation
+  const majorDrop= randRange(0.05, 0.25);  // overall grade 5–25%
+
+  // Build terrain via layered noise: base slope + 2–4 terrain features
+  const nFeatures = 2 + Math.floor(rand() * 3); // 2–4 features
+  const features = [];
+  for(let i=0;i<nFeatures;i++){
+    features.push({
+      ch:   randRange(20, totalLen - 20),         // position
+      type: rand() < 0.3 ? 'hill' : 'valley',    // 30% hill, 70% valley (slopes tend to be hilly)
+      amp:  randRange(1.5, 6.0),                  // height of feature
+      width:randRange(15, 60),                    // width of feature
+    });
+  }
+
+  // Optional steep cliff section (the interesting bit for this tool)
+  const hasCliff = rand() < 0.65;
+  const cliffAt  = randRange(30, totalLen * 0.7);
+  const cliffDrop= randRange(4, 12);
+  const cliffLen = randRange(8, 25);
+
+  const rows = [];
+  for(let ch = 0; ch <= totalLen; ch += 2){
+    let rl = startRL - (ch / totalLen) * majorDrop * totalLen;
+
+    // Add terrain features (Gaussian bumps)
+    for(const f of features){
+      const dx = ch - f.ch;
+      const gauss = Math.exp(-(dx*dx)/(2*f.width*f.width));
+      rl += (f.type==='hill' ? 1 : -1) * f.amp * gauss;
+    }
+
+    // Add cliff
+    if(hasCliff && ch >= cliffAt && ch <= cliffAt + cliffLen){
+      const t = (ch - cliffAt) / cliffLen;
+      rl -= t * cliffDrop;
+    } else if(hasCliff && ch > cliffAt + cliffLen){
+      rl -= cliffDrop;
+    }
+
+    // Small survey noise
+    const noise = (rand() - 0.5) * 0.08;
+    rl += noise;
+
+    rows.push(`${ch}, ${Math.round(rl * 1000)/1000}`);
+  }
+
+  document.getElementById('profileInput').value = rows.join('\n');
+
+  // Clear any previous constraints so auto-fill is fresh
+  clearConstraints();
+}
+
+function clearProfile(){document.getElementById('profileInput').value='';}
+window.addEventListener('resize',()=>{if(_results.length>0)renderChart(_results);});
+</script>
+</body>
+</html>
